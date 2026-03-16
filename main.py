@@ -1,44 +1,49 @@
 import requests
 from bs4 import BeautifulSoup
+import csv
+import time
 
-url = "https://books.toscrape.com/"
-
-
-#headers = {
-#    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/120.0.0.0 Safari/537.36",
-#    "Accept-Language": "en-US,en;q=0.9"
-#}
-
+base_url = "https://books.toscrape.com/catalogue/page-{}.html"
 
 headers = {
- "User-Agent": "Mozilla/5.0"
+    "User-Agent": "Mozilla/5.0"
 }
 
-response = requests.get(url, headers=headers)
+all_books = []
 
-soup = BeautifulSoup(response.text, "lxml")
+for page in range(1, 6):
 
-books = soup.find_all("article", class_="product_pod")
-
-for book in books:
-
-    title = book.find("h3").find("a").get("title").strip()
-
-    price = book.find("p", class_="price_color").get_text().strip()
-
-    print(title, price)
-
-for page in range(1,6):
-
-    url = f"https://books.toscrape.com/catalogue/page-{page}.html"
+    url = base_url.format(page)
 
     response = requests.get(url, headers=headers)
 
-    soup = BeautifulSoup(response.text,"lxml")
+    if response.status_code != 200:
+        print("Request failed")
+        continue
 
-    books = soup.find_all("article",class_="product_pod")
+    soup = BeautifulSoup(response.text, "lxml")
+
+    books = soup.select(".product_pod")
 
     for book in books:
-        title = book.h3.a["title"]
-        print(title)
 
+        title = book.select_one("h3 a")["title"].strip()
+
+        price = book.select_one(".price_color").text.strip()
+
+        all_books.append({
+            "title": title,
+            "price": price
+        })
+
+    time.sleep(1)
+
+print("Total Books Scraped:", len(all_books))
+
+with open("books.csv","w",newline="",encoding="utf-8") as f:
+
+    writer = csv.DictWriter(f, fieldnames=["title","price"])
+
+    writer.writeheader()
+
+    writer.writerows(all_books)
